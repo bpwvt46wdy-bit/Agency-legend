@@ -824,16 +824,17 @@ async function saveCreator() {
     name: document.getElementById('nc-name').value.trim(),
     handle: document.getElementById('nc-handle').value.trim(),
     agent_id: parseInt(document.getElementById('nc-agent').value),
-    followers: document.getElementById('nc-followers').value.trim(),
     viewers_avg: document.getElementById('nc-viewers').value.trim(),
     dispo: document.getElementById('nc-dispo').value.trim(),
     status: 'Actif', matchs_count: 0
   };
   if(!data.name) return;
   if(id) {
-    await db.from('creators').update(data).eq('id', parseInt(id));
+    const {error} = await db.from('creators').update(data).eq('id', parseInt(id));
+    if(error) { alert('Erreur: ' + error.message); return; }
   } else {
-    await db.from('creators').insert(data);
+    const {error} = await db.from('creators').insert(data);
+    if(error) { alert('Erreur: ' + error.message); return; }
   }
   closeModal('modal-creator');
   await loadAll(); renderAll();
