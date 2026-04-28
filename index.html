@@ -450,11 +450,21 @@ th, td { padding:10px 12px; }
     <div class="form-group"><label class="form-label">Adversaire</label><input type="text" class="form-input" id="nm-opponent" placeholder="Nom adversaire"></div>
     <div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="nm-date"></div>
     <div class="form-group"><label class="form-label">Heure</label><input type="time" class="form-input" id="nm-time"></div>
-    <div class="form-group"><label class="form-label">Notes</label><input type="text" class="form-input" id="nm-notes" placeholder="Info supplémentaire..."></div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeModal('modal-match')">Annuler</button>
-      <button class="btn btn-solid" onclick="addMatch()">Confirmer</button>
-    </div>
+
+```
+<div class="form-group">
+  <label class="form-label">Image du match (affiche TikTok)</label>
+  <input type="file" class="form-input" id="nm-image" accept="image/*" style="padding:8px">
+  <div id="nm-image-preview" style="margin-top:10px;display:none">
+    <img id="nm-image-img" style="width:100%;border-radius:4px;border:1px solid rgba(201,168,76,0.3)" />
+  </div>
+</div>
+<div class="modal-actions">
+  <button class="btn" onclick="closeModal('modal-match')">Annuler</button>
+  <button class="btn btn-solid" id="btn-confirm-match" onclick="addMatch()">Confirmer</button>
+</div>
+```
+
   </div>
 </div>
 
@@ -854,13 +864,63 @@ function editCreator(id) {
   openModal('modal-creator');
 }
 
+// Image preview
+document.addEventListener('DOMContentLoaded', () => {
+  const imgInput = document.getElementById('nm-image');
+  if(imgInput) {
+    imgInput.addEventListener('change', function() {
+      const file = this.files[0];
+      if(file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          document.getElementById('nm-image-img').src = e.target.result;
+          document.getElementById('nm-image-preview').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
+});
+
 async function addMatch() {
   const creator_id = parseInt(document.getElementById('nm-creator').value);
   const opponent = document.getElementById('nm-opponent').value.trim();
   const date = document.getElementById('nm-date').value;
   if(!opponent||!date) return;
-  await db.from('matchs').insert({ creator_id, opponent, date, time: document.getElementById('nm-time').value||'20:00', status:'En attente', notes: document.getElementById('nm-notes').value.trim() });
+  
+  const btn = document.getElementById('btn-confirm-match');
+  btn.textContent = 'Envoi...';
+  btn.disabled = true;
+
+  let image_url = null;
+  const imageFile = document.getElementById('nm-image').files[0];
+  
+  if(imageFile) {
+    const fileName = 'match_' + Date.now() + '_' + imageFile.name.replace(/\s/g,'_');
+    const { data: uploadData, error: uploadError } = await db.storage
+      .from('matchs-images')
+      .upload(fileName, imageFile, { cacheControl: '3600', upsert: false });
+    
+    if(!uploadError) {
+      const { data: urlData } = db.storage.from('matchs-images').getPublicUrl(fileName);
+      image_url = urlData.publicUrl;
+    }
+  }
+  
+  await db.from('matchs').insert({ 
+    creator_id, opponent, date, 
+    time: document.getElementById('nm-time').value||'20:00', 
+    status:'En attente', 
+    
+    image_url
+  });
   await db.from('creators').update({status:'Occupé'}).eq('id',creator_id);
+  
+  btn.textContent = 'Confirmer';
+  btn.disabled = false;
+  document.getElementById('nm-image').value = '';
+  document.getElementById('nm-image-preview').style.display = 'none';
+  
   closeModal('modal-match');
   await loadAll(); renderAll();
 }
