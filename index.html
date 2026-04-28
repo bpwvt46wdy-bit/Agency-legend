@@ -815,7 +815,7 @@ function renderCalendar() {
   for(let d=1;d<=daysInMonth;d++) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday = today.getDate()===d && today.getMonth()===month && today.getFullYear()===year;
-    const dayMatchs = matchs.filter(m=>m.date===dateStr);
+    const dayMatchs = matchs.filter(m=> m.date && m.date.slice(0,10)===dateStr);
     const events = dayMatchs.slice(0,2).map(m=>{
       const c = creators.find(x=>x.id===m.creator_id)||{};
       return `<div class="cal-event">${c.name||'?'} vs ${m.opponent||'?'}</div>`;
